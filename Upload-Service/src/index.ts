@@ -30,7 +30,7 @@ app.post('/deploy', async (req, resp) => {
             files.map(async (file) => {
                 console.log(`Uploading ${file}...`);
                 try {
-                    await uploadFile(file.split('output/')[1], file);
+                    await uploadFile(file.split('dist/')[1], file);
                     console.log(`Successfully uploaded: ${file}`);
                 } catch (error) {
                     console.error(` Failed to upload: ${file}`, error);
