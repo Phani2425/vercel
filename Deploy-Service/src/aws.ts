@@ -2,6 +2,7 @@ import { S3 } from "aws-sdk";
 import path from "path";
 import fs from "fs-extra";
 import dotenv from "dotenv";
+import { getContentType } from "./utils";
 dotenv.config();
 
 const s3 = new S3({
@@ -61,6 +62,35 @@ const downloadFile = async (key: string) => {
       console.log("error occured while downloading file:- ", err.message);
     } else {
       console.log("unknown error occured", err);
+    }
+  }
+};
+
+export const deployProject = async (buildPath: string) => {
+  try{
+    const files = fs.readdirSync(buildPath);
+    for (const file of files) {
+      const absPath = path.join(buildPath, file);
+      if (fs.statSync(absPath).isDirectory()) {
+        deployProject(absPath);
+      } else {
+        const fileContent = fs.readFileSync(absPath);
+        const params = {
+          Bucket:process.env.AWS_BUCKET_NAME! ,
+          Key:absPath.split('dist/')[1],
+          Body:fileContent,
+          ContentType:getContentType(file)
+        }
+
+        const data = await s3.upload(params).promise();
+        console.log('upload successfull:- ',data);
+      }
+    }
+  }catch (err) {
+    if (err instanceof Error) {
+      console.log("error occured while uploading build file:- ", err.message);
+    } else {
+      console.log("unknown error occured while uploading build file", err);
     }
   }
 };

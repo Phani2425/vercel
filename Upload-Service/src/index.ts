@@ -1,8 +1,9 @@
-import express, { response } from "express";
+import express from "express";
 import cors from 'cors';
 import simpleGit from 'simple-git';
 import { Generate } from "./utils";
 import path from "path";
+import fs from 'fs-extra'
 import { getAllFilePath } from "./files";
 import { uploadFile } from "./aws";
 import {createClient} from 'redis'
@@ -39,7 +40,9 @@ app.post('/deploy', async (req, resp) => {
         );
 
         console.log(' All files uploaded successfully.');
-
+        // removing file from local after upload
+        fs.removeSync(outputPath);
+        //publishing the id where the files are uploaded inside output folder of bucket in s3
         publisher.lPush("build-queue",id);
 
         resp.status(200).json({ id });
