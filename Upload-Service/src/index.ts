@@ -9,6 +9,8 @@ import { uploadFile } from "./aws";
 import {createClient} from 'redis'
 const publisher = createClient();
 publisher.connect();
+const subscriber = createClient();
+subscriber.connect();
 
 const app = express();
 app.use(cors());
@@ -43,8 +45,8 @@ app.post('/deploy', async (req, resp) => {
         // removing file from local after upload
         fs.removeSync(outputPath);
         //publishing the id where the files are uploaded inside output folder of bucket in s3
-        publisher.lPush("build-queue",id);
-
+        await publisher.lPush("build-queue",id);
+        await publisher.hSet("status",id,"uploaded");
         resp.status(200).json({ id });
     } catch (err) {
         console.error('Deployment error:', err);
@@ -54,6 +56,43 @@ app.post('/deploy', async (req, resp) => {
         });
     }
 });
+
+app.get('/status',async(req,resp) => {
+     const id = req.query.id as string;
+     if(!id){
+        console.log('no id present in query');
+        resp.status(400).json({
+            success:false,
+            message:'no id found'
+        })
+        return;
+     }
+
+     try{
+        const status = await subscriber.hGet("status",id);
+        if (!status) {
+            resp.status(404).json({
+               success: false,
+               message: 'deployment not found'
+           });
+           return;
+       }
+       
+        resp.status(200).json({
+           success: true,
+           status:status
+       });
+       return;
+     }catch(err){
+        console.error('Error fetching status:', err);
+        resp.status(500).json({
+            success: false,
+            error: 'Failed to fetch deployment status'
+        });
+        return;
+     }
+
+})
 
 app.get('/', (req,resp) =>{
     console.log('server is up and running')
